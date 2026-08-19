@@ -142,8 +142,156 @@ for t in range(30):
     E_approx += prob_survive
     v = v @ P_abs                  # advance one step
 
+
+---
+```
+
+<a id="examjanuary-2022-problem5-markovian-travel"></a>
+## ExamJanuary_2022.PROBLEM5 – Markovian travel
+## Markovian travel
+
+The dataset `Travel Dataset - Datathon 2019` is a simulated dataset designed to mimic real corporate travel systems -- focusing on flights and hotels. The file is at `data/flights.csv` in the same folder as `Exam.ipynb`, i.e. you can use the path `data/flights.csv` from the notebook to access the file.
+
+1. [2p] In the first code-box
+    1. Load the csv from file `data/flights.csv`
+    2. Fill in the value of the variables as specified by their names.
+2. [2p] In the second code-box your goal is to estimate a Markov chain transition matrix for the travels of these users. For example, if we enumerate the cities according to alphabetical order, the first city `'Aracaju (SE)'` would correspond to $0$. Each row of the file corresponds to one flight, i.e. it has a starting city and an ending city. We model this as a stationary Markov chain, i.e. each user's travel trajectory is a realization of the Markov chain, $X_t$. Here, $X_t$ is the current city the user is at, at step $t$, and $X_{t+1}$ is the city the user travels to at the next time step. This means that to each row in the file there is a corresponding pair $(X_{t},X_{t+1})$. The stationarity assumption gives that for all $t$ there is a transition density $p$ such that $P(X_{t+1} = y | X_t = x) = p(x,y)$ (for all $x,y$). The transition matrix should be `n_cities` x `n_citites` in size.
+3. [2p] Use the transition matrix to compute out the stationary distribution.
+4. [2p] Given that we start in 'Aracaju (SE)' what is the probability that after 3 steps we will be back in 'Aracaju (SE)'?
+
+
 print("Approx E[T] using t<30 =", E_approx)
 """
 
+```
+import pandas as pd
+#read the fole
+df = pd.read_csv("data/flights.csv")
+#fill value of variables
+number_of_observations = df.shape[0]
+number_of_userCodes = df["userCode"].nunique()
+number_of_cities = len(pd.unique(pd.concat([df["from"], df["to"]])))
+#display variables 
+number_of_cities, number_of_userCodes, number_of_observations
+
+
+
+# This is a very useful function that you can use for part 2. You have seen this before when parsing the
+# pride and prejudice book.
+
+def makeFreqDict(myDataList):
+    '''Make a frequency mapping out of a list of data.
+
+    Param myDataList, a list of data.
+    Return a dictionary mapping each unique data value to its frequency count.'''
+
+    freqDict = {} # start with an empty dictionary
+
+    for res in myDataList:
+        if res in freqDict: # the data value already exists as a key
+                freqDict[res] = freqDict[res] + 1 # add 1 to the count using sage integers
+        else: # the data value does not exist as a key value
+            freqDict[res] = 1 # add a new key-value pair for this new data value, frequency 1
+
+    return freqDict # return the dictionary created
+
+
+import numpy as np
+import pandas as pd
+
+# Build cities
+cities = pd.concat([df["from"], df["to"]])
+unique_cities = sorted(set(cities))
+n_cities = len(unique_cities)
+
+
+# Count the different transitions
+#transitions = XXX # A list containing tuples ex: ('Aracaju (SE)','Rio de Janeiro (RJ)') of all transitions in the text
+#transition_counts = XXX # A dictionary that counts the number of each transition
+transitions = list(zip(df["from"], df["to"]))
+
+transition_counts = makeFreqDict(transitions)
+
+# ex: ('Aracaju (SE)','Rio de Janeiro (RJ)'):4
+#indexToCity = XXX # A dictionary that maps the n-1 number to the n:th unique_city,
+indexToCity = {i: city for i, city in enumerate(unique_cities)}
+# ex: 0:'Aracaju (SE)'
+#cityToIndex = XXX # The inverse function of indexToWord,
+cityToIndex = {city: i for i, city in enumerate(unique_cities)}
+# ex: 'Aracaju (SE)':0
+
+# Part 3, finding the maximum likelihood estimate of the transition matrix
+
+#transition_matrix = XXX # a numpy array of size (n_cities,n_cities)
+transition_matrix = np.zeros((n_cities, n_cities))
+# The transition matrix should be ordered in such a way that
+# p_{'Aracaju (SE)','Rio de Janeiro (RJ)'} = transition_matrix[cityToIndex['Aracaju (SE)'],cityToIndex['Rio de Janeiro (RJ)']]
+# and represents the probability of travelling Aracaju (SE)->Rio de Janeiro (RJ)
+
+# Make sure that the transition_matrix does not contain np.nan from division by zero for instance
+
+
+
+for (city_from, city_to), count in transition_counts.items():
+    i = cityToIndex[city_from]
+    j = cityToIndex[city_to]
+    transition_matrix[i, j] += count
+
+# Normalize rows
+row_sums = transition_matrix.sum(axis=1, keepdims=True)
+transition_matrix = np.divide(
+    transition_matrix,
+    row_sums,
+    where=row_sums != 0
+)
+print(transition_matrix)
+
+
+# This should be a numpy array of length n_cities which sums to 1 and is all positive
+# To find the stationary distribution π, we solve πP = π
+# This can be rewritten as (P^T - I)π = 0 with the
+# constraint that the sum of the entries in π is 1.
+n = transition_matrix.shape[0]
+
+A = transition_matrix.T - np.eye(n)   # (9, 9)
+# Append the constraint that the sum of the entries in π is 1
+A = np.vstack([A, np.ones(n)])        # (10, 9)
+
+b = np.zeros(n + 1)                   # length 10
+b[-1] = 1                             # sum(pi)=1 constraint
+# Solve the linear system
+stationary_distribution_problem5 = np.linalg.lstsq(A, b, rcond=None)[0]
+
+print(stationary_distribution_problem5)
+print("sum =", stationary_distribution_problem5.sum())
+
+
+
+# Compute the return probability for part 3 of problem 5
+# Compute tree-step transition matrix
+i = cityToIndex['Aracaju (SE)']
+transition_matrix_3 = np.linalg.matrix_power(transition_matrix, 3)
+print(transition_matrix_3)
+return_probability = transition_matrix_3[i, i]
+print(return_probability_problem5)
+
+
+
+# Once you have created all your functions, you can make a small test here to see
+# what would be generated from your model.
+import numpy as np
+
+start = np.zeros(shape=(n_cities,1))
+start[cityToIndex['Aracaju (SE)'],0] = 1
+
+current_pos = start
+for i in range(10):
+    random_word_index = np.random.choice(range(n_cities),p=current_pos.reshape(-1))
+    current_pos = np.zeros_like(start)
+    current_pos[random_word_index] = 1
+    print(indexToCity[random_word_index],end='->')
+    current_pos = (current_pos.T@transition_matrix).T
+
+```
 
 
